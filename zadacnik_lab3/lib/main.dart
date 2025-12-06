@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'todo_model.dart';
 
 void main() async {
   await Hive.initFlutter();
-  Hive.registerAdapter(ToDoItemAdapter());
-  await Hive.openBox<ToDoItem>('todos');
+  await Hive.openBox<Map>('todos');
   runApp(const MyApp());
 }
 
@@ -33,8 +31,8 @@ class TodoScreen extends StatefulWidget {
 }
 
 class _TodoScreenState extends State<TodoScreen> {
-  final todoBox = Hive.box<ToDoItem>('todos');
-  final List<ToDoItem> _shownTodos = [];
+  final todoBox = Hive.box<Map>('todos');
+  final List<Map> _shownTodos = [];
 
   int _currentFilter = 0;
 
@@ -51,18 +49,19 @@ class _TodoScreenState extends State<TodoScreen> {
 
     if (_currentFilter == 1) {
       for (var item in all) {
-        if (!item.isActive) {
+        if (item != null && !item['isActive']) {
           _shownTodos.add(item);
         }
       }
     } else if (_currentFilter == 2) {
       for (var item in all) {
-        if (item.isActive) {
+        if (item != null && item['isActive']) {
           _shownTodos.add(item);
         }
       }
     } else {
-      _shownTodos.addAll(all);
+      // Все
+      _shownTodos.addAll(all.where((item) => item != null));
     }
 
     setState(() {});
@@ -94,11 +93,11 @@ class _TodoScreenState extends State<TodoScreen> {
                 var text = textController.text.trim();
                 if (text.isNotEmpty) {
                   var nextId = _getNextId();
-                  var newTodo = ToDoItem(
-                    id: nextId,
-                    name: text,
-                    isActive: false,
-                  );
+                  var newTodo = {
+                    'id': nextId,
+                    'name': text,
+                    'isActive': false,
+                  };
                   todoBox.add(newTodo);
                   _updateShownTodos();
                 }
@@ -112,8 +111,8 @@ class _TodoScreenState extends State<TodoScreen> {
     );
   }
 
-  void _openEditDialog(ToDoItem todo) {
-    var textController = TextEditingController(text: todo.name);
+  void _openEditDialog(Map todo) {
+    var textController = TextEditingController(text: todo['name']);
 
     showDialog(
       context: context,
@@ -136,7 +135,8 @@ class _TodoScreenState extends State<TodoScreen> {
               onPressed: () {
                 var newText = textController.text.trim();
                 if (newText.isNotEmpty) {
-                  todo.rename(newText);
+                  todo['name'] = newText;
+                  _saveTodo(todo);
                   _updateShownTodos();
                 }
                 Navigator.pop(ctx);
@@ -149,18 +149,19 @@ class _TodoScreenState extends State<TodoScreen> {
     );
   }
 
-  void _toggleTodo(ToDoItem todo) {
-    todo.toggle();
+  void _toggleTodo(Map todo) {
+    todo['isActive'] = !todo['isActive'];
+    _saveTodo(todo);
     _updateShownTodos();
   }
 
-  void _askDeleteTodo(ToDoItem todo) {
+  void _askDeleteTodo(Map todo) {
     showDialog(
       context: context,
       builder: (ctx) {
         return AlertDialog(
           title: const Text('Удалить?'),
-          content: Text('Удалить "${todo.name}"?'),
+          content: Text('Удалить "${todo['name']}"?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -168,7 +169,7 @@ class _TodoScreenState extends State<TodoScreen> {
             ),
             TextButton(
               onPressed: () {
-                todo.delete();
+                _deleteTodo(todo);
                 _updateShownTodos();
                 Navigator.pop(ctx);
               },
@@ -183,7 +184,31 @@ class _TodoScreenState extends State<TodoScreen> {
   int _getNextId() {
     if (todoBox.isEmpty) return 1;
     var lastItem = todoBox.values.last;
-    return lastItem.id + 1;
+    return (lastItem?['id'] ?? 0) + 1;
+  }
+
+  void _saveTodo(Map todo) {
+    final key = _findTodoKey(todo['id']);
+    if (key != -1) {
+      todoBox.put(key, todo);
+    }
+  }
+
+  void _deleteTodo(Map todo) {
+    final key = _findTodoKey(todo['id']);
+    if (key != -1) {
+      todoBox.delete(key);
+    }
+  }
+
+  int _findTodoKey(int id) {
+    for (int i = 0; i < todoBox.length; i++) {
+      final todo = todoBox.getAt(i);
+      if (todo != null && todo['id'] == id) {
+        return i;
+      }
+    }
+    return -1;
   }
 
   @override
@@ -240,17 +265,17 @@ class _TodoScreenState extends State<TodoScreen> {
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
                     leading: Checkbox(
-                      value: todo.isActive,
+                      value: todo['isActive'],
                       onChanged: (_) => _toggleTodo(todo),
                     ),
                     title: Text(
-                      todo.name,
+                      todo['name'],
                       style: TextStyle(
                         fontSize: 16,
-                        decoration: todo.isActive
+                        decoration: todo['isActive']
                             ? TextDecoration.lineThrough
                             : null,
-                        color: todo.isActive ? Colors.grey : Colors.black,
+                        color: todo['isActive'] ? Colors.grey : Colors.black,
                       ),
                     ),
                     trailing: Row(

@@ -17,7 +17,6 @@ class Calculator extends StatefulWidget {
 }
 
 class _CalculatorState extends State<Calculator> {
-  // Данные по категориям конвертера
   final categoryData = {
     'Вес': {
       'route': '/weight',
@@ -51,8 +50,8 @@ class _CalculatorState extends State<Calculator> {
     },
   };
 
-  Widget _buildCategoryButton(String title, Map<String, dynamic> data) {
-    final color = data['color'] as Color;
+  Widget _buildButton(String title, Map<String, dynamic> data) {
+    var color = data['color'] as Color;
 
     return Card(
       elevation: 2,
@@ -134,12 +133,12 @@ class _CalculatorState extends State<Calculator> {
             Expanded(
               child: ListView(
                 children: categoryData.entries.map((entry) {
-                  final title = entry.key;
-                  final data = entry.value;
+                  var title = entry.key;
+                  var data = entry.value;
 
                   return Column(
                     children: [
-                      _buildCategoryButton(title, data),
+                      _buildButton(title, data),
                       if (title != 'Площадь') const SizedBox(height: 25),
                     ],
                   );
